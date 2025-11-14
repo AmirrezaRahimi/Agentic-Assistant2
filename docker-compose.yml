@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    env_file: .env.example
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+  frontend:
+    build: ./frontend
+    environment:
+      - NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE:-http://localhost:8000/api/v1}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vardast}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vardast}
+      POSTGRES_DB: ${POSTGRES_DB:-vardast}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-vardast}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  qdrant:
+    image: qdrant/qdrant:1.8.2
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  postgres_data:
+  qdrant_data:
